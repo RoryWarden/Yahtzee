@@ -2,7 +2,7 @@
 //  SoundManager.swift
 //  Yahtzee
 //
-//  Created by Claude on 12/25/25.
+//  Created by Matthew Parker on 12/24/25.
 //
 
 import AVFoundation
@@ -14,10 +14,20 @@ class SoundManager {
     private var audioPlayers: [AVAudioPlayer] = []
     private var diceRollTimer: Timer?
 
+    private let soundEnabledKey = "YahtzeeSoundEnabled"
+
+    /// Whether sounds are enabled (persisted to UserDefaults)
+    var isEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: soundEnabledKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: soundEnabledKey) }
+    }
+
     private init() {}
 
     /// Play dice rolling sound - rapid clicking that slows down
     func playDiceRoll() {
+        guard isEnabled else { return }
+
         // Cancel any existing roll sound
         diceRollTimer?.invalidate()
 
@@ -49,31 +59,37 @@ class SoundManager {
 
     /// Play a single click sound (die hitting table)
     func playClick() {
+        guard isEnabled else { return }
         NSSound(named: "Tink")?.play()
     }
 
     /// Play landing/settling sound
     func playLand() {
+        guard isEnabled else { return }
         NSSound(named: "Pop")?.play()
     }
 
     /// Play sound when holding a die
     func playHold() {
+        guard isEnabled else { return }
         NSSound(named: "Morse")?.play()
     }
 
     /// Play sound when scoring
     func playScore() {
+        guard isEnabled else { return }
         NSSound(named: "Glass")?.play()
     }
 
     /// Play sound for Yahtzee!
     func playYahtzee() {
+        guard isEnabled else { return }
         NSSound(named: "Funk")?.play()
     }
 
     /// Play sound for game over
     func playGameOver() {
+        guard isEnabled else { return }
         NSSound(named: "Hero")?.play()
     }
 }

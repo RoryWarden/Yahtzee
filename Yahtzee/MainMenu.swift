@@ -11,6 +11,7 @@ struct MainMenu: View {
     @State private var showPlayerSetup = false
     @State private var playerNames: [String] = [""]
     @State private var gameState: GameState?
+    @State private var soundEnabled = SoundManager.shared.isEnabled
 
     var body: some View {
         NavigationStack {
@@ -66,6 +67,27 @@ struct MainMenu: View {
                     .buttonStyle(.plain)
 
                     Spacer()
+
+                    // Sound toggle
+                    Button {
+                        soundEnabled.toggle()
+                        SoundManager.shared.isEnabled = soundEnabled
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                            Text(soundEnabled ? "Sound On" : "Sound Off")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 30)
                 }
             }
             .sheet(isPresented: $showPlayerSetup) {
