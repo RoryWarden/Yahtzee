@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MainMenu: View {
     @State private var showPlayerSetup = false
+    @State private var showHighScores = false
     @State private var playerNames: [String] = [""]
     @State private var gameState: GameState?
     @State private var soundEnabled = SoundManager.shared.isEnabled
@@ -68,6 +69,25 @@ struct MainMenu: View {
 
                     Spacer()
 
+                    // High Scores button
+                    Button {
+                        showHighScores = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "trophy.fill")
+                            Text("High Scores")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.3))
+                        )
+                    }
+                    .buttonStyle(.plain)
+
                     // Sound toggle
                     Button {
                         soundEnabled.toggle()
@@ -99,10 +119,90 @@ struct MainMenu: View {
                     }
                 )
             }
+            .sheet(isPresented: $showHighScores) {
+                HighScoresSheet()
+            }
             .navigationDestination(item: $gameState) { state in
                 PlayView(gameState: state)
             }
         }
+    }
+}
+
+struct HighScoresSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("High Scores")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            let highScores = HighScoreManager.shared.topScores(limit: 10)
+
+            if highScores.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "trophy")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("No high scores yet")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    Text("Play a game to set your first score!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(Array(highScores.enumerated()), id: \.offset) { index, entry in
+                            HStack {
+                                Text("\(index + 1).")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(index < 3 ? .orange : .primary)
+                                    .frame(width: 30, alignment: .leading)
+
+                                if index == 0 {
+                                    Image(systemName: "trophy.fill")
+                                        .foregroundColor(.yellow)
+                                }
+
+                                Text(entry.playerName)
+                                    .fontWeight(index < 3 ? .semibold : .regular)
+
+                                Spacer()
+
+                                Text("\(entry.score)")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(index < 3 ? .orange : .primary)
+
+                                Text(entry.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 80, alignment: .trailing)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(index % 2 == 0 ? Color.gray.opacity(0.05) : Color.clear)
+                            .cornerRadius(6)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 450, minHeight: 400)
     }
 }
 
