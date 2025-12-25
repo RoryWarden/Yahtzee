@@ -47,6 +47,9 @@ class DiceState {
         rollsRemaining -= 1
         hasRolled = true
 
+        // Play dice rolling sound effect
+        SoundManager.shared.playDiceRoll()
+
         // Each unheld die gets its own tumble sequence
         // This creates natural variation - dice don't all land at the same time
         for i in dice.indices {
@@ -95,6 +98,7 @@ class DiceState {
         guard hasRolled else { return }
         guard dice.indices.contains(index) else { return }
         dice[index].isHeld.toggle()
+        SoundManager.shared.playHold()
     }
 
     /// Reset for a new turn - release all holds but keep dice values visible

@@ -107,6 +107,9 @@ struct PlayView: View {
         .navigationTitle("Yahtzee")
         .onChange(of: gameState.isGameOver) { _, isOver in
             if isOver {
+                // Play game over sound
+                SoundManager.shared.playGameOver()
+
                 // Save high scores when game ends
                 for player in gameState.players {
                     HighScoreManager.shared.saveScore(

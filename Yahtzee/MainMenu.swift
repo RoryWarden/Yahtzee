@@ -235,6 +235,14 @@ class GameState: Hashable {
 
     func scoreCurrentPlayer(category: ScoreCategory) {
         guard let score = currentPlayer.scoreCard.potentialScores[category] else { return }
+
+        // Play appropriate sound
+        if category == .yahtzee && score == 50 {
+            SoundManager.shared.playYahtzee()
+        } else {
+            SoundManager.shared.playScore()
+        }
+
         currentPlayer.scoreCard.score(category: category, value: score)
         nextTurn()
     }
