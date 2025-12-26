@@ -207,6 +207,7 @@ struct RollButton: View {
             .foregroundColor(.white)
         }
         .buttonStyle(.plain)
+        .keyboardShortcut(.space, modifiers: [])
         .disabled(!canRoll)
     }
 }

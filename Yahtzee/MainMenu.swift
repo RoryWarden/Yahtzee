@@ -10,6 +10,8 @@ import SwiftUI
 struct MainMenu: View {
     @State private var showPlayerSetup = false
     @State private var showHighScores = false
+    @State private var showStats = false
+    @State private var showHistory = false
     @State private var playerNames: [String] = [""]
     @State private var gameState: GameState?
     @State private var soundEnabled = SoundManager.shared.isEnabled
@@ -69,24 +71,23 @@ struct MainMenu: View {
 
                     Spacer()
 
-                    // High Scores button
-                    Button {
-                        showHighScores = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "trophy.fill")
-                            Text("High Scores")
+                    // Menu buttons row
+                    HStack(spacing: 12) {
+                        // High Scores button
+                        MenuButton(icon: "trophy.fill", text: "High Scores") {
+                            showHighScores = true
                         }
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.9))
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(Color.black.opacity(0.3))
-                        )
+
+                        // Stats button
+                        MenuButton(icon: "chart.bar.fill", text: "Statistics") {
+                            showStats = true
+                        }
+
+                        // History button
+                        MenuButton(icon: "clock.fill", text: "History") {
+                            showHistory = true
+                        }
                     }
-                    .buttonStyle(.plain)
 
                     // Sound toggle
                     Button {
@@ -121,6 +122,12 @@ struct MainMenu: View {
             }
             .sheet(isPresented: $showHighScores) {
                 HighScoresSheet()
+            }
+            .sheet(isPresented: $showStats) {
+                PlayerStatsSheet()
+            }
+            .sheet(isPresented: $showHistory) {
+                GameHistorySheet()
             }
             .navigationDestination(item: $gameState) { state in
                 PlayView(gameState: state)
@@ -203,6 +210,212 @@ struct HighScoresSheet: View {
         }
         .padding(24)
         .frame(minWidth: 450, minHeight: 400)
+    }
+}
+
+struct MenuButton: View {
+    let icon: String
+    let text: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(text)
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundColor(.white.opacity(0.9))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.3))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PlayerStatsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Player Statistics")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            let stats = PlayerStatsManager.shared.allPlayerStats()
+
+            if stats.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("No statistics yet")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    Text("Complete a game to start tracking stats!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(stats) { stat in
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(stat.playerName)
+                                        .font(.headline)
+                                    Spacer()
+                                    Text("\(stat.gamesPlayed) games")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                HStack(spacing: 24) {
+                                    StatItem(label: "High Score", value: "\(stat.highScore)")
+                                    StatItem(label: "Average", value: String(format: "%.0f", stat.averageScore))
+                                    StatItem(label: "Yahtzees", value: "\(stat.totalYahtzees)")
+                                }
+
+                                Text("Last played: \(stat.lastPlayed.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 500, minHeight: 400)
+    }
+}
+
+struct StatItem: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.title3)
+                .fontWeight(.semibold)
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+struct GameHistorySheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Game History")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            let games = GameHistoryManager.shared.recentGames(limit: 20)
+
+            if games.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("No games yet")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    Text("Your game history will appear here!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(games) { game in
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(game.date.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+
+                                    Spacer()
+
+                                    Label("\(game.playerCount) players", systemImage: "person.2")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Divider()
+
+                                ForEach(game.players.sorted(by: { $0.finalScore > $1.finalScore })) { player in
+                                    HStack {
+                                        if player.playerName == game.winnerName {
+                                            Image(systemName: "crown.fill")
+                                                .foregroundColor(.yellow)
+                                                .font(.caption)
+                                        }
+
+                                        Text(player.playerName)
+                                            .fontWeight(player.playerName == game.winnerName ? .semibold : .regular)
+
+                                        Spacer()
+
+                                        if player.hadYahtzee {
+                                            Text("YAHTZEE")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.orange)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.orange.opacity(0.2))
+                                                .cornerRadius(4)
+                                        }
+
+                                        Text("\(player.finalScore)")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 500, minHeight: 450)
     }
 }
 
@@ -324,6 +537,16 @@ class GameState: Hashable {
     var currentPlayerIndex: Int = 0
     var diceState: DiceState = DiceState()
 
+    // Undo support
+    private var lastScoredPlayerIndex: Int?
+    private var lastScoredCategory: ScoreCategory?
+    private var lastScoredValue: Int?
+    private var lastYahtzeeBonusCount: Int?
+    var canUndo: Bool { lastScoredCategory != nil }
+
+    // Yahtzee celebration callback
+    var onYahtzee: (() -> Void)?
+
     init(playerNames: [String]) {
         self.players = playerNames.enumerated().map { index, name in
             Player(id: index, name: name)
@@ -358,15 +581,48 @@ class GameState: Hashable {
     func scoreCurrentPlayer(category: ScoreCategory) {
         guard let score = currentPlayer.scoreCard.potentialScores[category] else { return }
 
-        // Play appropriate sound
+        // Save undo state before scoring
+        lastScoredPlayerIndex = currentPlayerIndex
+        lastScoredCategory = category
+        lastScoredValue = score
+        lastYahtzeeBonusCount = currentPlayer.scoreCard.yahtzeeBonusCount
+
+        // Play appropriate sound and trigger celebration
         if category == .yahtzee && score == 50 {
             SoundManager.shared.playYahtzee()
+            onYahtzee?()
         } else {
             SoundManager.shared.playScore()
         }
 
         currentPlayer.scoreCard.score(category: category, value: score)
         nextTurn()
+    }
+
+    func undoLastScore() {
+        guard let playerIndex = lastScoredPlayerIndex,
+              let category = lastScoredCategory else { return }
+
+        // Go back to the player who scored
+        currentPlayerIndex = playerIndex
+
+        // Remove the score
+        players[playerIndex].scoreCard.unscore(category: category)
+
+        // Restore yahtzee bonus count if needed
+        if let bonusCount = lastYahtzeeBonusCount {
+            players[playerIndex].scoreCard.yahtzeeBonusCount = bonusCount
+        }
+
+        // Clear undo state (can only undo once)
+        lastScoredPlayerIndex = nil
+        lastScoredCategory = nil
+        lastScoredValue = nil
+        lastYahtzeeBonusCount = nil
+
+        // Restore dice state for re-scoring
+        diceState.rollsRemaining = 0
+        diceState.hasRolled = true
     }
 }
 

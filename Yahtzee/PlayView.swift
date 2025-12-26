@@ -12,8 +12,10 @@ struct PlayView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showAllScores = false
     @State private var showGameOverSheet = false
+    @State private var showYahtzeeCelebration = false
 
     var body: some View {
+        ZStack {
         HStack(spacing: 0) {
             // Left side - Score Cards
             ScrollView {
@@ -104,19 +106,57 @@ struct PlayView: View {
             .frame(minWidth: 400)
             .padding()
         }
+
+            // Yahtzee celebration overlay
+            if showYahtzeeCelebration {
+                YahtzeeCelebrationView()
+                    .transition(.opacity)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            withAnimation {
+                                showYahtzeeCelebration = false
+                            }
+                        }
+                    }
+            }
+        } // end ZStack
         .navigationTitle("Yahtzee")
+        .onAppear {
+            gameState.onYahtzee = {
+                withAnimation {
+                    showYahtzeeCelebration = true
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    undoLastScore()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                }
+                .disabled(!gameState.canUndo)
+                .keyboardShortcut("z", modifiers: .command)
+            }
+        }
         .onChange(of: gameState.isGameOver) { _, isOver in
             if isOver {
                 // Play game over sound
                 SoundManager.shared.playGameOver()
 
-                // Save high scores when game ends
+                // Save high scores and statistics when game ends
                 for player in gameState.players {
                     HighScoreManager.shared.saveScore(
                         playerName: player.name,
                         score: player.scoreCard.grandTotal
                     )
+                    PlayerStatsManager.shared.recordGame(
+                        playerName: player.name,
+                        score: player.scoreCard.grandTotal,
+                        yahtzeeCount: player.scoreCard.scores[.yahtzee] == 50 ? 1 + player.scoreCard.yahtzeeBonusCount : 0
+                    )
                 }
+                GameHistoryManager.shared.saveGame(gameState: gameState)
                 showGameOverSheet = true
             }
         }
@@ -125,7 +165,110 @@ struct PlayView: View {
                 dismiss()
             }
         }
+        // Keyboard shortcuts for dice (1-5) and roll (space)
+        .onKeyPress(.init("1")) { toggleDie(0); return .handled }
+        .onKeyPress(.init("2")) { toggleDie(1); return .handled }
+        .onKeyPress(.init("3")) { toggleDie(2); return .handled }
+        .onKeyPress(.init("4")) { toggleDie(3); return .handled }
+        .onKeyPress(.init("5")) { toggleDie(4); return .handled }
+        .onKeyPress(.space) { rollDice(); return .handled }
     }
+
+    private func toggleDie(_ index: Int) {
+        guard gameState.diceState.hasRolled && !gameState.diceState.isRolling else { return }
+        gameState.diceState.toggleHold(at: index)
+    }
+
+    private func rollDice() {
+        guard gameState.diceState.canRoll else { return }
+        gameState.diceState.roll()
+    }
+
+    private func undoLastScore() {
+        gameState.undoLastScore()
+    }
+}
+
+struct YahtzeeCelebrationView: View {
+    @State private var particles: [ConfettiParticle] = []
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Text("YAHTZEE!")
+                    .font(.system(size: 72, weight: .black, design: .rounded))
+                    .foregroundColor(.yellow)
+                    .shadow(color: .orange, radius: 10)
+                    .shadow(color: .red, radius: 20)
+
+                Text("50 Points!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+            }
+            .scaleEffect(particles.isEmpty ? 0.5 : 1.0)
+            .animation(.spring(response: 0.4, dampingFraction: 0.6), value: particles.isEmpty)
+
+            // Confetti particles
+            ForEach(particles) { particle in
+                Circle()
+                    .fill(particle.color)
+                    .frame(width: particle.size, height: particle.size)
+                    .position(particle.position)
+                    .opacity(particle.opacity)
+            }
+        }
+        .onAppear {
+            createConfetti()
+        }
+    }
+
+    private func createConfetti() {
+        let colors: [Color] = [.red, .yellow, .green, .blue, .orange, .purple, .pink]
+        var newParticles: [ConfettiParticle] = []
+
+        for i in 0..<50 {
+            let particle = ConfettiParticle(
+                id: i,
+                color: colors.randomElement()!,
+                size: CGFloat.random(in: 8...16),
+                position: CGPoint(x: CGFloat.random(in: 0...800), y: -20),
+                opacity: 1.0
+            )
+            newParticles.append(particle)
+        }
+        particles = newParticles
+
+        // Animate particles falling
+        for i in particles.indices {
+            let delay = Double.random(in: 0...0.5)
+            let duration = Double.random(in: 1.5...2.5)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeIn(duration: duration)) {
+                    particles[i].position.y = 800
+                    particles[i].position.x += CGFloat.random(in: -100...100)
+                }
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay + duration - 0.3) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    particles[i].opacity = 0
+                }
+            }
+        }
+    }
+}
+
+struct ConfettiParticle: Identifiable {
+    let id: Int
+    let color: Color
+    let size: CGFloat
+    var position: CGPoint
+    var opacity: Double
 }
 
 struct PlayerTabsView: View {

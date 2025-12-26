@@ -83,6 +83,19 @@ class ScoreCardState {
         yahtzeeBonusCount = 0
         currentDiceIsYahtzee = false
     }
+
+    func unscore(category: ScoreCategory) {
+        scores[category] = nil
+    }
+
+    /// Progress toward the 63-point upper bonus threshold
+    var upperBonusProgress: Int {
+        upperSectionTotal
+    }
+
+    var upperBonusNeeded: Int {
+        max(0, 63 - upperSectionTotal)
+    }
 }
 
 struct ScoreCardView: View {
@@ -109,6 +122,12 @@ struct ScoreCardView: View {
                     onTap: { onCategorySelected?(category) }
                 )
             }
+
+            // Upper bonus progress indicator
+            UpperBonusProgressView(
+                current: state.upperBonusProgress,
+                hasBonus: state.upperBonus > 0
+            )
 
             // Upper Section Totals
             TotalRow(label: "Upper Total", value: state.upperSectionTotal)
@@ -265,6 +284,56 @@ struct TotalRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(isGrandTotal ? Color.gray.opacity(0.1) : Color.clear)
+    }
+}
+
+struct UpperBonusProgressView: View {
+    let current: Int
+    let hasBonus: Bool
+    private let target = 63
+
+    var body: some View {
+        VStack(spacing: 4) {
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 8)
+
+                    // Progress
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(hasBonus ? Color.green : Color.blue)
+                        .frame(
+                            width: min(CGFloat(current) / CGFloat(target) * geometry.size.width, geometry.size.width),
+                            height: 8
+                        )
+                }
+            }
+            .frame(height: 8)
+
+            // Label
+            HStack {
+                if hasBonus {
+                    Label("Bonus earned!", systemImage: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                } else {
+                    Text("\(current)/\(target) toward bonus")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text("\(target - current) more needed")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 }
 
