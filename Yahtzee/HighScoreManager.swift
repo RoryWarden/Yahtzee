@@ -53,7 +53,9 @@ class HighScoreManager {
         saveScoresToDisk()
     }
 
-    func topScores(limit: Int = 10) -> [HighScoreEntry] { Array(scores.prefix(limit)) }
+	func topScores(limit: Int = 10) -> [HighScoreEntry] {
+		Array(scores.prefix(limit))
+	}
 
 	func scoresForPlayer(name: String) -> [HighScoreEntry] {
 		scores.filter {
@@ -61,7 +63,9 @@ class HighScoreManager {
 		}
 	}
 
-    func bestScoreForPlayer(name: String) -> HighScoreEntry? { scoresForPlayer(name: name).first }
+	func bestScoreForPlayer(name: String) -> HighScoreEntry? {
+		scoresForPlayer(name: name).first
+	}
 
     func clearAllScores() {
         scores = []

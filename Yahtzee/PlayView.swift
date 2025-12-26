@@ -17,50 +17,47 @@ struct PlayView: View {
     var body: some View {
         ZStack {
         HStack(spacing: 0) {
-            // Left side - Score Cards
+            // Left side - Score Card
             ScrollView {
-                VStack(spacing: 16) {
-                    // Player tabs / names at top
-                    PlayerTabsView(gameState: gameState)
-
-                    if showAllScores {
-                        // Show all players' score cards
-                        AllPlayersScoreView(gameState: gameState)
-                    } else {
-                        // Current player's score card
-                        ScoreCardView(
-                            state: gameState.currentPlayer.scoreCard
-                        ) { category in
-                            if gameState.diceState.hasRolled &&
-                               !gameState.currentPlayer.scoreCard.isScored(category) {
-                                gameState.scoreCurrentPlayer(category: category)
-                            }
+                if showAllScores {
+                    // Show all players' score cards
+                    AllPlayersScoreView(gameState: gameState)
+                        .padding()
+                } else {
+                    // Current player's score card
+                    ScoreCardView(
+                        state: gameState.currentPlayer.scoreCard
+                    ) { category in
+                        if gameState.diceState.hasRolled &&
+                           !gameState.currentPlayer.scoreCard.isScored(category) {
+                            gameState.scoreCurrentPlayer(category: category)
                         }
                     }
                 }
-                .padding()
             }
-            .frame(minWidth: 300, maxWidth: showAllScores ? .infinity : 400)
+            .frame(minWidth: 320, maxWidth: showAllScores ? .infinity : 380)
             .background(Color.gray.opacity(0.05))
 
             Divider()
 
             // Right side - Dice Area
-            VStack {
+            VStack(spacing: 16) {
+                // Player tabs at top
+                PlayerTabsView(gameState: gameState)
+                    .padding(.top, 8)
+
                 Spacer()
 
                 // Turn info
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
                     Text("\(gameState.categoriesRemaining) categories left")
-                        .font(.headline)
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
 
                     Text("\(gameState.currentPlayer.name)'s Turn")
-                        .font(.title2)
+                        .font(.title3)
                         .fontWeight(.bold)
                 }
-
-                Spacer()
 
                 // Dice control with roll button
                 DiceControlView(state: gameState.diceState)
@@ -70,20 +67,18 @@ struct PlayView: View {
                         }
                     }
 
-                Spacer()
-
                 // Instructions
                 if !gameState.diceState.hasRolled {
                     Text("Roll the dice to start your turn")
-                        .font(.callout)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 } else if gameState.diceState.rollsRemaining > 0 {
                     Text("Select a category to score, or roll again")
-                        .font(.callout)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
                     Text("Select a category to score")
-                        .font(.callout)
+                        .font(.caption)
                         .foregroundColor(.orange)
                 }
 
@@ -103,7 +98,7 @@ struct PlayView: View {
                 .buttonStyle(.bordered)
                 .padding(.bottom)
             }
-            .frame(minWidth: 400)
+            .frame(minWidth: 450)
             .padding()
         }
 
@@ -120,6 +115,7 @@ struct PlayView: View {
                     }
             }
         } // end ZStack
+        .frame(minWidth: 900, minHeight: 750)
         .navigationTitle("Yahtzee")
         .onAppear {
             gameState.onYahtzee = {

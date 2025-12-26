@@ -2,6 +2,8 @@
 //  PlayerStatsManager.swift
 //  Yahtzee
 //
+//  Created by Matthew Parker on 12/24/25.
+//
 //  Tracks player statistics across games.
 //
 

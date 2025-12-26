@@ -106,8 +106,9 @@ struct ScoreCardView: View {
         VStack(spacing: 0) {
             // Header
             Text("SCORE CARD")
-                .font(.headline)
-                .padding(.vertical, 8)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .padding(.vertical, 6)
 
             Divider()
 
@@ -135,7 +136,7 @@ struct ScoreCardView: View {
             TotalRow(label: "Upper Total + Bonus", value: state.upperTotalWithBonus, isBold: true)
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
 
             // Lower Section
             SectionHeader(title: "LOWER SECTION")
@@ -150,7 +151,7 @@ struct ScoreCardView: View {
             }
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
 
             // Yahtzee Bonus
             if state.yahtzeeBonusCount > 0 {
@@ -170,9 +171,10 @@ struct ScoreCardView: View {
             TotalRow(label: "GRAND TOTAL", value: state.grandTotal, isBold: true, isGrandTotal: true)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .cornerRadius(12)
+        .cornerRadius(10)
         .shadow(radius: 2)
-        .padding()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 }
 
@@ -187,8 +189,8 @@ struct SectionHeader: View {
                 .foregroundColor(.secondary)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
         .background(Color.gray.opacity(0.1))
     }
 }
@@ -243,8 +245,8 @@ struct ScoreRow: View {
                         .frame(minWidth: 36, alignment: .trailing)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
             .background(
                 hasPotential && canScore
                     ? Color.blue.opacity(0.08)
@@ -256,7 +258,7 @@ struct ScoreRow: View {
         .disabled(score != nil)
 
         Divider()
-            .padding(.leading, 12)
+            .padding(.leading, 10)
     }
 }
 
@@ -281,8 +283,8 @@ struct TotalRow: View {
                 .fontWeight(isBold ? .semibold : .regular)
                 .foregroundColor(highlight ? .green : .primary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
         .background(isGrandTotal ? Color.gray.opacity(0.1) : Color.clear)
     }
 }
@@ -332,8 +334,8 @@ struct UpperBonusProgressView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
     }
 }
 

@@ -2,6 +2,8 @@
 //  GameHistoryManager.swift
 //  Yahtzee
 //
+//  Created by Matthew Parker on 12/24/25.
+//
 //  Stores complete game history with all player scores.
 //
 
@@ -12,7 +14,6 @@ struct GameRecord: Codable, Identifiable {
     let date: Date
     let players: [PlayerGameRecord]
     let winnerName: String
-
     var playerCount: Int { players.count }
 }
 
@@ -76,9 +77,7 @@ class GameHistoryManager {
         history.insert(record, at: 0)
 
         // Keep only the last maxGames
-        if history.count > maxGames {
-            history = Array(history.prefix(maxGames))
-        }
+        if history.count > maxGames { history = Array(history.prefix(maxGames)) }
 
         games = history
     }

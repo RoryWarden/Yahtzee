@@ -246,13 +246,11 @@ struct PlayerStatsSheet: View {
                 Text("Player Statistics")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-
                 Spacer()
-
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
+				Button("Done") {
+					dismiss()
+				}
+				.buttonStyle(.bordered)
             }
 
             let stats = PlayerStatsManager.shared.allPlayerStats()
