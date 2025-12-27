@@ -167,6 +167,19 @@ enum ScoreCategory: String, CaseIterable, Identifiable {
         [.threeOfAKind, .fourOfAKind, .fullHouse, .smallStraight, .largeStraight, .yahtzee, .chance]
     }
 
+    /// Returns the upper section category matching a die value (1-6)
+    static func upperCategory(for dieValue: Int) -> ScoreCategory? {
+        switch dieValue {
+        case 1: return .ones
+        case 2: return .twos
+        case 3: return .threes
+        case 4: return .fours
+        case 5: return .fives
+        case 6: return .sixes
+        default: return nil
+        }
+    }
+
     var description: String {
         switch self {
         case .ones: return "Sum of all ones"

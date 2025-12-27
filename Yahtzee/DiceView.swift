@@ -46,7 +46,7 @@ struct SingleDieView: View {
             ZStack {
                 // Held indicator border
                 RoundedRectangle(cornerRadius: cornerRadius + 4)
-                    .fill(isHeld ? Color.orange : Color.clear)
+                    .fill(isHeld ? Theme.diceHeld : Color.clear)
                     .frame(width: dieSize + 8, height: dieSize + 8)
 
                 // Die background
@@ -202,7 +202,7 @@ struct RollButton: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(canRoll ? Color.blue : Color.gray)
+                    .fill(canRoll ? Theme.rollButton : Color.gray)
             )
             .foregroundColor(.white)
         }
@@ -248,7 +248,7 @@ struct DiceControlView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.green.opacity(0.15))
+                .fill(Theme.diceTableGradient)
         )
     }
 }

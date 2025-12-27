@@ -123,6 +123,20 @@ class DiceState {
             dice[i].isHeld = false
         }
     }
+
+    #if DEBUG
+    /// Debug: Force all dice to show the same value (instant Yahtzee)
+    func forceYahtzee(value: Int = 0) {
+        let yahtzeeValue = value == 0 ? Int.random(in: 1...6) : value
+        for i in dice.indices {
+            dice[i].value = yahtzeeValue
+            dice[i].isHeld = false
+        }
+        rollsRemaining = 0
+        hasRolled = true
+        isRolling = false
+    }
+    #endif
 }
 
 struct Die: Identifiable {

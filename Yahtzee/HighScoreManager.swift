@@ -71,4 +71,23 @@ class HighScoreManager {
         scores = []
         saveScoresToDisk()
     }
+
+    func deleteScore(_ entry: HighScoreEntry) {
+        scores.removeAll { $0.id == entry.id }
+        saveScoresToDisk()
+    }
+
+    func deleteScores(playerName: String, score: Int, date: Date, tolerance: TimeInterval = 60) {
+        // Remove scores matching player, score, and within time tolerance of the date
+        scores.removeAll { entry in
+            entry.playerName == playerName &&
+            entry.score == score &&
+            abs(entry.date.timeIntervalSince(date)) < tolerance
+        }
+        saveScoresToDisk()
+    }
+
+    func allScores() -> [HighScoreEntry] {
+        scores
+    }
 }

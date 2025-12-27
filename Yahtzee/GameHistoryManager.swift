@@ -26,6 +26,13 @@ struct PlayerGameRecord: Codable, Identifiable {
     let upperBonus: Int
     let yahtzeeBonus: Int
     let hadYahtzee: Bool
+    // Full score card breakdown (category name -> score)
+    let categoryScores: [String: Int]
+
+    // Helper to get score for a category
+    func score(for category: ScoreCategory) -> Int? {
+        categoryScores[category.rawValue]
+    }
 }
 
 class GameHistoryManager {
@@ -53,14 +60,23 @@ class GameHistoryManager {
 
     func saveGame(gameState: GameState) {
         let playerRecords = gameState.players.map { player in
-            PlayerGameRecord(
+            // Capture all category scores
+            var categoryScores: [String: Int] = [:]
+            for category in ScoreCategory.allCases {
+                if let score = player.scoreCard.scores[category] {
+                    categoryScores[category.rawValue] = score
+                }
+            }
+
+            return PlayerGameRecord(
                 playerName: player.name,
                 finalScore: player.scoreCard.grandTotal,
                 upperScore: player.scoreCard.upperSectionTotal,
                 lowerScore: player.scoreCard.lowerSectionTotal,
                 upperBonus: player.scoreCard.upperBonus,
                 yahtzeeBonus: player.scoreCard.yahtzeeBonus,
-                hadYahtzee: player.scoreCard.scores[.yahtzee] == 50
+                hadYahtzee: player.scoreCard.scores[.yahtzee] == 50,
+                categoryScores: categoryScores
             )
         }
 
@@ -98,5 +114,21 @@ class GameHistoryManager {
 
     func clearHistory() {
         games = []
+        // Cascade: clear high scores and stats since history is the source of truth
+        HighScoreManager.shared.clearAllScores()
+        PlayerStatsManager.shared.clearStats()
+    }
+
+    func deleteGame(_ game: GameRecord) {
+        var history = games
+        history.removeAll { $0.id == game.id }
+        games = history
+    }
+
+    func deleteGame(at index: Int) {
+        var history = games
+        guard index >= 0 && index < history.count else { return }
+        history.remove(at: index)
+        games = history
     }
 }

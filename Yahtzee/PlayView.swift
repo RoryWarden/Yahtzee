@@ -13,6 +13,11 @@ struct PlayView: View {
     @State private var showAllScores = false
     @State private var showGameOverSheet = false
     @State private var showYahtzeeCelebration = false
+    #if DEBUG
+    @State private var debugModeActive = false
+    @State private var debugYahtzeeValue = 0  // Will cycle 1-6
+    @State private var showDebugWarning = false
+    #endif
 
     var body: some View {
         ZStack {
@@ -79,7 +84,7 @@ struct PlayView: View {
                 } else {
                     Text("Select a category to score")
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundColor(Theme.accent)
                 }
 
                 Spacer()
@@ -140,19 +145,27 @@ struct PlayView: View {
                 // Play game over sound
                 SoundManager.shared.playGameOver()
 
-                // Save high scores and statistics when game ends
-                for player in gameState.players {
-                    HighScoreManager.shared.saveScore(
-                        playerName: player.name,
-                        score: player.scoreCard.grandTotal
-                    )
-                    PlayerStatsManager.shared.recordGame(
-                        playerName: player.name,
-                        score: player.scoreCard.grandTotal,
-                        yahtzeeCount: player.scoreCard.scores[.yahtzee] == 50 ? 1 + player.scoreCard.yahtzeeBonusCount : 0
-                    )
+                #if DEBUG
+                let shouldSaveScores = !debugModeActive
+                #else
+                let shouldSaveScores = true
+                #endif
+
+                // Save high scores and statistics when game ends (skip if debug mode)
+                if shouldSaveScores {
+                    for player in gameState.players {
+                        HighScoreManager.shared.saveScore(
+                            playerName: player.name,
+                            score: player.scoreCard.grandTotal
+                        )
+                        PlayerStatsManager.shared.recordGame(
+                            playerName: player.name,
+                            score: player.scoreCard.grandTotal,
+                            yahtzeeCount: player.scoreCard.scores[.yahtzee] == 50 ? 1 + player.scoreCard.yahtzeeBonusCount : 0
+                        )
+                    }
+                    GameHistoryManager.shared.saveGame(gameState: gameState)
                 }
-                GameHistoryManager.shared.saveGame(gameState: gameState)
                 showGameOverSheet = true
             }
         }
@@ -161,6 +174,13 @@ struct PlayView: View {
                 dismiss()
             }
         }
+        #if DEBUG
+        .alert("Debug Mode Activated", isPresented: $showDebugWarning) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Scores from this game will NOT be saved to high scores, statistics, or history.\n\nPress ⌘Y to cycle through Yahtzees (1→2→3→4→5→6→1...)")
+        }
+        #endif
         // Keyboard shortcuts for dice (1-5) and roll (space)
         .onKeyPress(.init("1")) { toggleDie(0); return .handled }
         .onKeyPress(.init("2")) { toggleDie(1); return .handled }
@@ -168,6 +188,14 @@ struct PlayView: View {
         .onKeyPress(.init("4")) { toggleDie(3); return .handled }
         .onKeyPress(.init("5")) { toggleDie(4); return .handled }
         .onKeyPress(.space) { rollDice(); return .handled }
+        #if DEBUG
+        .background {
+            // Hidden button for Cmd+Y debug shortcut
+            Button("Force Yahtzee") { forceYahtzee() }
+                .keyboardShortcut("y", modifiers: .command)
+                .hidden()
+        }
+        #endif
     }
 
     private func toggleDie(_ index: Int) {
@@ -183,6 +211,21 @@ struct PlayView: View {
     private func undoLastScore() {
         gameState.undoLastScore()
     }
+
+    #if DEBUG
+    private func forceYahtzee() {
+        // Show warning on first use
+        if !debugModeActive {
+            debugModeActive = true
+            showDebugWarning = true
+        }
+
+        // Cycle through 1-6 sequentially
+        debugYahtzeeValue = (debugYahtzeeValue % 6) + 1
+        gameState.diceState.forceYahtzee(value: debugYahtzeeValue)
+        gameState.currentPlayer.scoreCard.updatePotentialScores(dice: gameState.diceState.values)
+    }
+    #endif
 }
 
 struct YahtzeeCelebrationView: View {
@@ -196,9 +239,9 @@ struct YahtzeeCelebrationView: View {
             VStack(spacing: 16) {
                 Text("YAHTZEE!")
                     .font(.system(size: 72, weight: .black, design: .rounded))
-                    .foregroundColor(.yellow)
-                    .shadow(color: .orange, radius: 10)
-                    .shadow(color: .red, radius: 20)
+                    .foregroundColor(Theme.accent)
+                    .shadow(color: Theme.accentDark, radius: 10)
+                    .shadow(color: Theme.primary, radius: 20)
 
                 Text("50 Points!")
                     .font(.title)
@@ -223,7 +266,7 @@ struct YahtzeeCelebrationView: View {
     }
 
     private func createConfetti() {
-        let colors: [Color] = [.red, .yellow, .green, .blue, .orange, .purple, .pink]
+        let colors: [Color] = Theme.celebrationColors
         var newParticles: [ConfettiParticle] = []
 
         for i in 0..<50 {
@@ -307,7 +350,7 @@ struct PlayerTab: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isCurrentPlayer ? Color.blue : Color.gray.opacity(0.2))
+                .fill(isCurrentPlayer ? Theme.currentPlayer : Theme.otherPlayer)
         )
         .foregroundColor(isCurrentPlayer ? .white : .primary)
     }
@@ -334,7 +377,7 @@ struct AllPlayersScoreView: View {
                         .font(.caption)
                         .fontWeight(.semibold)
                         .frame(width: 70)
-                        .foregroundColor(player.id == gameState.currentPlayerIndex ? .blue : .primary)
+                        .foregroundColor(player.id == gameState.currentPlayerIndex ? Theme.currentPlayer : .primary)
                 }
             }
             .padding(.horizontal, 8)
@@ -380,12 +423,12 @@ struct AllPlayersScoreView: View {
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .frame(width: 70)
-                        .foregroundColor(player.id == gameState.currentPlayerIndex ? .blue : .primary)
+                        .foregroundColor(player.id == gameState.currentPlayerIndex ? Theme.currentPlayer : .primary)
                 }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color.gray.opacity(0.1))
+            .background(Theme.sectionHeader)
         }
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
@@ -457,7 +500,7 @@ struct GameOverView: View {
                 VStack(spacing: 8) {
                     Text("\(winner.name) Wins!")
                         .font(.title)
-                        .foregroundColor(.green)
+                        .foregroundColor(Theme.success)
 
                     Text("\(winner.scoreCard.grandTotal) points")
                         .font(.title2)
@@ -489,7 +532,7 @@ struct GameOverView: View {
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(Theme.sectionHeader)
             .cornerRadius(8)
 
             Divider()
@@ -526,7 +569,7 @@ struct GameOverView: View {
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(Theme.sectionHeader)
             .cornerRadius(8)
 
             Button("Back to Menu") {

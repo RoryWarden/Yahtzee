@@ -13,6 +13,8 @@ class ScoreCardState {
     var potentialScores: [ScoreCategory: Int] = [:]
     var yahtzeeBonusCount: Int = 0
     private var currentDiceIsYahtzee: Bool = false
+    private var yahtzeeValue: Int = 0  // The die value of the current yahtzee (1-6)
+    private var currentDice: [Int] = []
 
     init() {
         for category in ScoreCategory.allCases {
@@ -66,8 +68,22 @@ class ScoreCardState {
     }
 
     func updatePotentialScores(dice: [Int]) {
-        potentialScores = ScoreCardMath.allPotentialScores(dice: dice)
+        currentDice = dice
         currentDiceIsYahtzee = ScoreCardMath.yahtzee(dice: dice) == 50
+        yahtzeeValue = currentDiceIsYahtzee ? dice[0] : 0
+
+        // Calculate base potential scores
+        var potential = ScoreCardMath.allPotentialScores(dice: dice)
+
+        // Apply Joker rules if enabled and this is a bonus Yahtzee
+        if SettingsManager.shared.jokerRulesEnabled && yahtzeeBonusAvailable {
+            // Joker can score fixed values for Full House, Small/Large Straight
+            potential[.fullHouse] = 25
+            potential[.smallStraight] = 30
+            potential[.largeStraight] = 40
+        }
+
+        potentialScores = potential
     }
 
     func clearPotentialScores() {
@@ -96,6 +112,60 @@ class ScoreCardState {
     var upperBonusNeeded: Int {
         max(0, 63 - upperSectionTotal)
     }
+
+    /// True when rolling a Yahtzee and eligible for bonus (Yahtzee already scored as 50)
+    var yahtzeeBonusAvailable: Bool {
+        currentDiceIsYahtzee && scores[.yahtzee] == 50
+    }
+
+    /// Returns whether a category can be selected under current rules
+    /// When Joker rules are enabled and a bonus Yahtzee is rolled, selection is restricted
+    func isCategoryValidForSelection(_ category: ScoreCategory) -> Bool {
+        // Can't select already scored categories
+        guard !isScored(category) else { return false }
+
+        // If Joker rules disabled, any unscored category with a potential score is valid
+        guard SettingsManager.shared.jokerRulesEnabled else { return true }
+
+        // If not a bonus Yahtzee situation, normal rules apply
+        guard yahtzeeBonusAvailable else { return true }
+
+        // JOKER RULES: Priority-based selection
+        let matchingUpperCategory = ScoreCategory.upperCategory(for: yahtzeeValue)
+
+        // 1. If matching upper section is open, MUST use it
+        if let upperCat = matchingUpperCategory, !isScored(upperCat) {
+            return category == upperCat
+        }
+
+        // 2. If matching upper is filled, can use any open lower section
+        let openLowerCategories = ScoreCategory.lowerSection.filter { !isScored($0) }
+        if !openLowerCategories.isEmpty {
+            return openLowerCategories.contains(category)
+        }
+
+        // 3. If all lower filled, can use any open upper section (scores 0)
+        let openUpperCategories = ScoreCategory.upperSection.filter { !isScored($0) }
+        return openUpperCategories.contains(category)
+    }
+
+    /// Message explaining why Joker rules restrict category selection
+    var jokerRulesMessage: String? {
+        guard SettingsManager.shared.jokerRulesEnabled && yahtzeeBonusAvailable else { return nil }
+
+        let matchingUpperCategory = ScoreCategory.upperCategory(for: yahtzeeValue)
+
+        if let upperCat = matchingUpperCategory, !isScored(upperCat) {
+            return "Joker Rule: Must score in \(upperCat.rawValue)"
+        }
+
+        let openLowerCategories = ScoreCategory.lowerSection.filter { !isScored($0) }
+        if !openLowerCategories.isEmpty {
+            return "Joker Rule: Score in any open lower section"
+        }
+
+        return "Joker Rule: Score 0 in any open upper section"
+    }
 }
 
 struct ScoreCardView: View {
@@ -120,6 +190,7 @@ struct ScoreCardView: View {
                     category: category,
                     score: state.scores[category] ?? nil,
                     potentialScore: state.potentialScores[category],
+                    isValidForSelection: state.isCategoryValidForSelection(category),
                     onTap: { onCategorySelected?(category) }
                 )
             }
@@ -146,12 +217,18 @@ struct ScoreCardView: View {
                     category: category,
                     score: state.scores[category] ?? nil,
                     potentialScore: state.potentialScores[category],
+                    isValidForSelection: state.isCategoryValidForSelection(category),
                     onTap: { onCategorySelected?(category) }
                 )
             }
 
             Divider()
                 .padding(.vertical, 2)
+
+            // Yahtzee Bonus Available indicator
+            if state.yahtzeeBonusAvailable {
+                YahtzeeBonusBanner(jokerMessage: state.jokerRulesMessage)
+            }
 
             // Yahtzee Bonus
             if state.yahtzeeBonusCount > 0 {
@@ -191,7 +268,7 @@ struct SectionHeader: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(Color.gray.opacity(0.1))
+        .background(Theme.sectionHeader)
     }
 }
 
@@ -199,14 +276,23 @@ struct ScoreRow: View {
     let category: ScoreCategory
     let score: Int?
     let potentialScore: Int?
+    let isValidForSelection: Bool
     let onTap: () -> Void
+
+    private var isScored: Bool {
+        score != nil
+    }
 
     private var hasPotential: Bool {
         score == nil && potentialScore != nil
     }
 
     private var canScore: Bool {
-        score == nil && (potentialScore ?? 0) > 0
+        score == nil && (potentialScore ?? 0) > 0 && isValidForSelection
+    }
+
+    private var isDisabledByJoker: Bool {
+        score == nil && potentialScore != nil && !isValidForSelection
     }
 
     var body: some View {
@@ -215,28 +301,27 @@ struct ScoreRow: View {
                 // Category name and description
                 VStack(alignment: .leading, spacing: 2) {
                     Text(category.rawValue)
-                        .foregroundColor(.primary)
+                        .foregroundColor(isScored ? Theme.scoredText : .primary)
 
                     Text(category.description)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isScored ? Theme.scoredText.opacity(0.7) : .secondary)
                 }
 
                 Spacer()
 
                 // Score display
                 if let score = score {
-                    // Already scored - show final value
+                    // Already scored - show final value in blue
                     Text("\(score)")
                         .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(Theme.scoredText)
                         .frame(minWidth: 36, alignment: .trailing)
                 } else if let potential = potentialScore {
-                    // Potential score - greyed out "would be" value
+                    // Potential score - orange for positive, gray for zero
                     Text("\(potential)")
-                        .fontWeight(.medium)
-                        .foregroundColor(potential > 0 ? .blue : .gray)
-                        .opacity(potential > 0 ? 0.8 : 0.5)
+                        .fontWeight(.semibold)
+                        .foregroundColor(potential > 0 ? Theme.potentialScore : Theme.zeroPotential)
                         .frame(minWidth: 36, alignment: .trailing)
                 } else {
                     // No potential yet (hasn't rolled)
@@ -248,14 +333,15 @@ struct ScoreRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(
-                hasPotential && canScore
-                    ? Color.blue.opacity(0.08)
-                    : Color.clear
+                isScored
+                    ? Theme.scored
+                    : (canScore ? Theme.accentLight.opacity(0.5) : Color.clear)
             )
             .contentShape(Rectangle())
+            .opacity(isDisabledByJoker ? 0.4 : 1.0)
         }
         .buttonStyle(.plain)
-        .disabled(score != nil)
+        .disabled(score != nil || isDisabledByJoker)
 
         Divider()
             .padding(.leading, 10)
@@ -274,18 +360,18 @@ struct TotalRow: View {
             Text(label)
                 .font(isGrandTotal ? .headline : .subheadline)
                 .fontWeight(isBold ? .semibold : .regular)
-                .foregroundColor(highlight ? .green : .primary)
+                .foregroundColor(highlight ? Theme.success : (isGrandTotal ? Theme.primaryDark : .primary))
 
             Spacer()
 
             Text("\(value)")
                 .font(isGrandTotal ? .headline : .subheadline)
                 .fontWeight(isBold ? .semibold : .regular)
-                .foregroundColor(highlight ? .green : .primary)
+                .foregroundColor(highlight ? Theme.success : (isGrandTotal ? Theme.primaryDark : .primary))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 3)
-        .background(isGrandTotal ? Color.gray.opacity(0.1) : Color.clear)
+        .background(isGrandTotal ? Theme.primaryLight : Color.clear)
     }
 }
 
@@ -306,7 +392,7 @@ struct UpperBonusProgressView: View {
 
                     // Progress
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(hasBonus ? Color.green : Color.blue)
+                        .fill(hasBonus ? Theme.success : Theme.primary)
                         .frame(
                             width: min(CGFloat(current) / CGFloat(target) * geometry.size.width, geometry.size.width),
                             height: 8
@@ -320,7 +406,7 @@ struct UpperBonusProgressView: View {
                 if hasBonus {
                     Label("Bonus earned!", systemImage: "checkmark.circle.fill")
                         .font(.caption2)
-                        .foregroundColor(.green)
+                        .foregroundColor(Theme.success)
                 } else {
                     Text("\(current)/\(target) toward bonus")
                         .font(.caption2)
@@ -330,12 +416,80 @@ struct UpperBonusProgressView: View {
 
                     Text("\(target - current) more needed")
                         .font(.caption2)
-                        .foregroundColor(.orange)
+                        .foregroundColor(Theme.accent)
                 }
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
+    }
+}
+
+struct YahtzeeBonusBanner: View {
+    var jokerMessage: String?
+    @State private var isAnimating = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+                    .scaleEffect(isAnimating ? 1.2 : 0.8)
+
+                Image(systemName: "star.fill")
+                    .foregroundColor(Theme.accent)
+                    .scaleEffect(isAnimating ? 1.0 : 1.2)
+
+                Text("YAHTZEE BONUS!")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(Theme.accent)
+
+                Text("+100")
+                    .font(.headline)
+                    .fontWeight(.black)
+                    .foregroundColor(Theme.success)
+
+                Image(systemName: "star.fill")
+                    .foregroundColor(Theme.accent)
+                    .scaleEffect(isAnimating ? 1.0 : 1.2)
+
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+                    .scaleEffect(isAnimating ? 1.2 : 0.8)
+            }
+
+            if let message = jokerMessage {
+                Text(message)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(Theme.primaryDark)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    LinearGradient(
+                        colors: [Theme.accentLight, Theme.accent.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Theme.accent, lineWidth: 2)
+        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
     }
 }
 

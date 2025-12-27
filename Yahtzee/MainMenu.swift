@@ -12,20 +12,17 @@ struct MainMenu: View {
     @State private var showHighScores = false
     @State private var showStats = false
     @State private var showHistory = false
+    @State private var showSettings = false
     @State private var playerNames: [String] = [""]
     @State private var gameState: GameState?
-    @State private var soundEnabled = SoundManager.shared.isEnabled
+    @Bindable var settings = SettingsManager.shared
 
     var body: some View {
         NavigationStack {
             ZStack {
                 // Background
-                LinearGradient(
-                    colors: [Color.red.opacity(0.8), Color.red.opacity(0.4)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                Theme.menuGradient
+                    .ignoresSafeArea()
 
                 VStack(spacing: 40) {
                     Spacer()
@@ -58,12 +55,12 @@ struct MainMenu: View {
                                 .font(.title)
                                 .fontWeight(.bold)
                         }
-                        .foregroundColor(.red)
+                        .foregroundColor(Theme.primaryDark)
                         .padding(.horizontal, 60)
                         .padding(.vertical, 20)
                         .background(
                             Capsule()
-                                .fill(Color.white)
+                                .fill(Theme.menuButton)
                                 .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                         )
                     }
@@ -89,26 +86,31 @@ struct MainMenu: View {
                         }
                     }
 
-                    // Sound toggle
-                    Button {
-                        soundEnabled.toggle()
-                        SoundManager.shared.isEnabled = soundEnabled
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                            Text(soundEnabled ? "Sound On" : "Sound Off")
+                    Spacer()
+                        .frame(height: 30)
+                }
+
+                // Settings gear in bottom left
+                VStack {
+                    Spacer()
+                    HStack {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.title2)
+                                .foregroundColor(.white.opacity(0.8))
+                                .padding(12)
+                                .background(
+                                    Circle()
+                                        .fill(Theme.menuButtonSecondary)
+                                )
                         }
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.9))
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(Color.black.opacity(0.3))
-                        )
+                        .buttonStyle(.plain)
+                        .padding(20)
+
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
-                    .padding(.bottom, 30)
                 }
             }
             .sheet(isPresented: $showPlayerSetup) {
@@ -129,8 +131,20 @@ struct MainMenu: View {
             .sheet(isPresented: $showHistory) {
                 GameHistorySheet()
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
             .navigationDestination(item: $gameState) { state in
                 PlayView(gameState: state)
+            }
+            .preferredColorScheme(settings.colorScheme)
+            .id("\(settings.appTheme)-\(settings.selectedCustomThemeId?.uuidString ?? "")") // Force refresh when theme changes
+            .onChange(of: settings.soundEnabled) { _, enabled in
+                SoundManager.shared.isEnabled = enabled
+            }
+            .onAppear {
+                // Sync sound setting on launch
+                SoundManager.shared.isEnabled = settings.soundEnabled
             }
         }
     }
@@ -173,7 +187,7 @@ struct HighScoresSheet: View {
             } else {
                 ScrollView {
                     VStack(spacing: 8) {
-                        ForEach(Array(highScores.enumerated()), id: \.offset) { index, entry in
+                        ForEach(Array(highScores.enumerated()), id: \.element.id) { index, entry in
                             HStack {
                                 Text("\(index + 1).")
                                     .fontWeight(.semibold)
@@ -225,12 +239,12 @@ struct MenuButton: View {
                 Text(text)
             }
             .font(.subheadline.weight(.medium))
-            .foregroundColor(.white.opacity(0.9))
+            .foregroundColor(.white.opacity(0.95))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(Color.black.opacity(0.3))
+                    .fill(Theme.menuButtonSecondary)
             )
         }
         .buttonStyle(.plain)
@@ -324,6 +338,8 @@ struct StatItem: View {
 
 struct GameHistorySheet: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var games: [GameRecord] = []
+    @State private var selectedGame: GameRecord?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -339,8 +355,9 @@ struct GameHistorySheet: View {
                 }
                 .buttonStyle(.bordered)
             }
-
-            let games = GameHistoryManager.shared.recentGames(limit: 20)
+            .onAppear {
+                games = GameHistoryManager.shared.recentGames(limit: 20)
+            }
 
             if games.isEmpty {
                 Spacer()
@@ -360,53 +377,93 @@ struct GameHistorySheet: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(games) { game in
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text(game.date.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-
-                                    Spacer()
-
-                                    Label("\(game.playerCount) players", systemImage: "person.2")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Divider()
-
-                                ForEach(game.players.sorted(by: { $0.finalScore > $1.finalScore })) { player in
+                            Button {
+                                selectedGame = game
+                            } label: {
+                                VStack(alignment: .leading, spacing: 8) {
                                     HStack {
-                                        if player.playerName == game.winnerName {
-                                            Image(systemName: "crown.fill")
-                                                .foregroundColor(.yellow)
-                                                .font(.caption)
-                                        }
-
-                                        Text(player.playerName)
-                                            .fontWeight(player.playerName == game.winnerName ? .semibold : .regular)
+                                        Text(game.date.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
 
                                         Spacer()
 
-                                        if player.hadYahtzee {
-                                            Text("YAHTZEE")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.orange)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(Color.orange.opacity(0.2))
-                                                .cornerRadius(4)
-                                        }
+                                        Label("\(game.playerCount) players", systemImage: "person.2")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
 
-                                        Text("\(player.finalScore)")
-                                            .fontWeight(.semibold)
+                                        Button {
+                                            withAnimation {
+                                                // Delete matching high scores for each player
+                                                for player in game.players {
+                                                    HighScoreManager.shared.deleteScores(
+                                                        playerName: player.playerName,
+                                                        score: player.finalScore,
+                                                        date: game.date
+                                                    )
+                                                }
+                                                // Delete from history
+                                                GameHistoryManager.shared.deleteGame(game)
+                                                games.removeAll { $0.id == game.id }
+                                                // Recalculate statistics from remaining history
+                                                PlayerStatsManager.shared.recalculateFromHistory()
+                                            }
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .font(.caption)
+                                                .foregroundColor(.red.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+
+                                    Divider()
+
+                                    ForEach(game.players.sorted(by: { $0.finalScore > $1.finalScore })) { player in
+                                        HStack {
+                                            if player.playerName == game.winnerName {
+                                                Image(systemName: "crown.fill")
+                                                    .foregroundColor(.yellow)
+                                                    .font(.caption)
+                                            }
+
+                                            Text(player.playerName)
+                                                .fontWeight(player.playerName == game.winnerName ? .semibold : .regular)
+                                                .foregroundColor(.primary)
+
+                                            Spacer()
+
+                                            if player.hadYahtzee {
+                                                Text("YAHTZEE")
+                                                    .font(.caption2)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.orange)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.orange.opacity(0.2))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            Text("\(player.finalScore)")
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(.primary)
+                                        }
+                                    }
+
+                                    HStack {
+                                        Spacer()
+                                        Text("Tap to view score cards")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
                                     }
                                 }
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(10)
                             }
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(10)
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -414,6 +471,175 @@ struct GameHistorySheet: View {
         }
         .padding(24)
         .frame(minWidth: 500, minHeight: 450)
+        .sheet(item: $selectedGame) { game in
+            GameDetailSheet(game: game)
+        }
+    }
+}
+
+struct GameDetailSheet: View {
+    let game: GameRecord
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Game Details")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text(game.date.formatted(date: .long, time: .shortened))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal)
+            .padding(.top)
+
+            Divider()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(game.players.sorted(by: { $0.finalScore > $1.finalScore })) { player in
+                        HistoryScoreCardView(player: player, isWinner: player.playerName == game.winnerName)
+                    }
+                }
+                .padding(.horizontal)
+            }
+
+            Spacer()
+        }
+        .frame(minWidth: 400, minHeight: 550)
+    }
+}
+
+struct HistoryScoreCardView: View {
+    let player: PlayerGameRecord
+    let isWinner: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                if isWinner {
+                    Image(systemName: "crown.fill")
+                        .foregroundColor(.yellow)
+                }
+                Text(player.playerName)
+                    .font(.headline)
+                    .fontWeight(.bold)
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(isWinner ? Theme.primary.opacity(0.2) : Color.gray.opacity(0.1))
+
+            Divider()
+
+            // Upper Section
+            VStack(spacing: 0) {
+                Text("UPPER")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+
+                ForEach(ScoreCategory.upperSection) { category in
+                    ScoreHistoryRow(
+                        label: category.rawValue,
+                        score: player.score(for: category)
+                    )
+                }
+
+                ScoreHistoryRow(label: "Bonus", score: player.upperBonus, highlight: player.upperBonus > 0)
+                ScoreHistoryRow(label: "Upper Total", score: player.upperScore + player.upperBonus, isBold: true)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Lower Section
+            VStack(spacing: 0) {
+                Text("LOWER")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+
+                ForEach(ScoreCategory.lowerSection) { category in
+                    ScoreHistoryRow(
+                        label: category.rawValue,
+                        score: player.score(for: category)
+                    )
+                }
+
+                if player.yahtzeeBonus > 0 {
+                    ScoreHistoryRow(label: "Yahtzee Bonus", score: player.yahtzeeBonus, highlight: true)
+                }
+
+                ScoreHistoryRow(label: "Lower Total", score: player.lowerScore, isBold: true)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Grand Total
+            HStack {
+                Text("GRAND TOTAL")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                Spacer()
+                Text("\(player.finalScore)")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(Theme.primary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(Theme.primaryLight)
+        }
+        .frame(width: 180)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .cornerRadius(10)
+        .shadow(radius: 2)
+    }
+}
+
+struct ScoreHistoryRow: View {
+    let label: String
+    let score: Int?
+    var highlight: Bool = false
+    var isBold: Bool = false
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .fontWeight(isBold ? .semibold : .regular)
+                .foregroundColor(highlight ? Theme.success : .primary)
+                .lineLimit(1)
+
+            Spacer()
+
+            if let score = score {
+                Text("\(score)")
+                    .font(.caption)
+                    .fontWeight(isBold ? .semibold : .regular)
+                    .foregroundColor(highlight ? Theme.success : .primary)
+            } else {
+                Text("-")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
     }
 }
 
@@ -493,6 +719,7 @@ struct PlayerSetupView: View {
                         entries.append(PlayerNameEntry())
                     } label: {
                         Label("Add Player", systemImage: "plus.circle.fill")
+                            .foregroundColor(Theme.primary)
                     }
                 }
 
@@ -508,7 +735,7 @@ struct PlayerSetupView: View {
                         .padding(.vertical, 12)
                         .background(
                             Capsule()
-                                .fill(canStart ? Color.green : Color.gray)
+                                .fill(canStart ? Theme.primary : Color.gray)
                         )
                 }
                 .buttonStyle(.plain)

@@ -84,4 +84,43 @@ class PlayerStatsManager {
     func clearStats() {
         allStats = [:]
     }
+
+    func clearStats(for playerName: String) {
+        var stats = allStats
+        stats.removeValue(forKey: playerName)
+        allStats = stats
+    }
+
+    /// Recalculate all stats from game history (useful after deleting games)
+    func recalculateFromHistory() {
+        var newStats: [String: PlayerStats] = [:]
+
+        for game in GameHistoryManager.shared.allGames() {
+            for player in game.players {
+                let yahtzeeCount = player.hadYahtzee ? 1 + (player.yahtzeeBonus / 100) : 0
+
+                if var existing = newStats[player.playerName] {
+                    existing.gamesPlayed += 1
+                    existing.totalScore += player.finalScore
+                    existing.highScore = max(existing.highScore, player.finalScore)
+                    existing.totalYahtzees += yahtzeeCount
+                    if game.date > existing.lastPlayed {
+                        existing.lastPlayed = game.date
+                    }
+                    newStats[player.playerName] = existing
+                } else {
+                    newStats[player.playerName] = PlayerStats(
+                        playerName: player.playerName,
+                        gamesPlayed: 1,
+                        totalScore: player.finalScore,
+                        highScore: player.finalScore,
+                        totalYahtzees: yahtzeeCount,
+                        lastPlayed: game.date
+                    )
+                }
+            }
+        }
+
+        allStats = newStats
+    }
 }
