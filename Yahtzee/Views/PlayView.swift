@@ -120,7 +120,9 @@ struct PlayView: View {
                     }
             }
         } // end ZStack
+        #if os(macOS)
         .frame(minWidth: 900, minHeight: 750)
+        #endif
         .navigationTitle("Yahtzee")
         .onAppear {
             gameState.onYahtzee = {
@@ -181,6 +183,7 @@ struct PlayView: View {
             Text("Scores from this game will NOT be saved to high scores, statistics, or history.\n\nPress ⌘Y to cycle through Yahtzees (1→2→3→4→5→6→1...)")
         }
         #endif
+        #if os(macOS)
         // Keyboard shortcuts for dice (1-5) and roll (space)
         .onKeyPress(.init("1")) { toggleDie(0); return .handled }
         .onKeyPress(.init("2")) { toggleDie(1); return .handled }
@@ -195,6 +198,7 @@ struct PlayView: View {
                 .keyboardShortcut("y", modifiers: .command)
                 .hidden()
         }
+        #endif
         #endif
     }
 
@@ -431,7 +435,11 @@ struct AllPlayersScoreView: View {
             .background(Theme.sectionHeader)
         }
         .padding()
+        #if os(macOS)
         .background(Color(nsColor: .windowBackgroundColor))
+        #else
+        .background(Color(uiColor: .systemBackground))
+        #endif
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -579,7 +587,11 @@ struct GameOverView: View {
             .padding(.top)
         }
         .padding(32)
+        #if os(macOS)
         .frame(minWidth: 400, minHeight: 500)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 

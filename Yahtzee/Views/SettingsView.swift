@@ -142,7 +142,11 @@ struct SettingsView: View {
                 .padding()
             }
         }
+        #if os(macOS)
         .frame(width: 400, height: 600)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .alert("Clear All Data?", isPresented: $showClearDataConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clear All", role: .destructive) {
@@ -458,7 +462,11 @@ struct CustomThemeCreatorView: View {
             }
             .padding()
         }
+        #if os(macOS)
         .frame(width: 350, height: 450)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 

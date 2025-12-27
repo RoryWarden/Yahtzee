@@ -90,7 +90,7 @@ struct MainMenu: View {
                         .frame(height: 30)
                 }
 
-                // Settings gear in bottom left
+                // Settings button (bottom left)
                 VStack {
                     Spacer()
                     HStack {
@@ -223,7 +223,11 @@ struct HighScoresSheet: View {
             }
         }
         .padding(24)
+        #if os(macOS)
         .frame(minWidth: 450, minHeight: 400)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 
@@ -316,7 +320,11 @@ struct PlayerStatsSheet: View {
             }
         }
         .padding(24)
+        #if os(macOS)
         .frame(minWidth: 500, minHeight: 400)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 
@@ -470,7 +478,11 @@ struct GameHistorySheet: View {
             }
         }
         .padding(24)
+        #if os(macOS)
         .frame(minWidth: 500, minHeight: 450)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .sheet(item: $selectedGame) { game in
             GameDetailSheet(game: game)
         }
@@ -516,7 +528,11 @@ struct GameDetailSheet: View {
 
             Spacer()
         }
+        #if os(macOS)
         .frame(minWidth: 400, minHeight: 550)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 
@@ -605,7 +621,11 @@ struct HistoryScoreCardView: View {
             .background(Theme.primaryLight)
         }
         .frame(width: 180)
+        #if os(macOS)
         .background(Color(nsColor: .windowBackgroundColor))
+        #else
+        .background(Color(uiColor: .systemBackground))
+        #endif
         .cornerRadius(10)
         .shadow(radius: 2)
     }
@@ -751,14 +771,18 @@ struct PlayerSetupView: View {
                 }
             }
         }
+        #if os(macOS)
         .frame(minWidth: 350, minHeight: 400)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
     }
 }
 
 @Observable
 class GameState: Hashable {
     let id = UUID()
-    let players: [Player]
+    var players: [Player]
     var currentPlayerIndex: Int = 0
     var diceState: DiceState = DiceState()
 

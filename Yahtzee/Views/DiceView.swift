@@ -10,8 +10,10 @@ import SwiftUI
 struct DiceRowView: View {
     @Bindable var state: DiceState
 
+    private let diceSpacing: CGFloat = 12
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: diceSpacing) {
             ForEach(state.dice) { die in
                 SingleDieView(
                     value: die.value,
@@ -66,10 +68,10 @@ struct SingleDieView: View {
                     .strokeBorder(Color.gray.opacity(0.5), lineWidth: 1)
                     .frame(width: dieSize, height: dieSize)
 
-                // Dots - animate the value changes
+                // Dots
                 DieFaceView(value: value, dotSize: dotSize)
                     .frame(width: dieSize - 16, height: dieSize - 16)
-                    .id(value) // Force view recreation on value change
+                    .id(value)
                     .transition(.scale.combined(with: .opacity))
             }
             .offset(y: bounceOffset)
@@ -93,7 +95,6 @@ struct SingleDieView: View {
     }
 
     private func startRollingAnimation() {
-        // Continuous subtle bounce while rolling
         withAnimation(
             .easeInOut(duration: 0.15)
             .repeatForever(autoreverses: true)
@@ -104,7 +105,6 @@ struct SingleDieView: View {
     }
 
     private func settleAnimation() {
-        // Settle back to rest
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
             bounceOffset = 0
             rotationAngle = 0
@@ -219,25 +219,7 @@ struct DiceControlView: View {
         VStack(spacing: 16) {
             DiceRowView(state: state)
 
-            HStack(spacing: 12) {
-                if state.hasRolled {
-                    Button("Hold All") {
-                        state.holdAll()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Release All") {
-                        state.releaseAll()
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                RollButton(
-                    rollsRemaining: state.rollsRemaining,
-                    canRoll: state.canRoll,
-                    action: { state.roll() }
-                )
-            }
+            standardControls
 
             if state.hasRolled {
                 Text("Tap dice to hold/release")
@@ -250,6 +232,28 @@ struct DiceControlView: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Theme.diceTableGradient)
         )
+    }
+
+    private var standardControls: some View {
+        HStack(spacing: 12) {
+            if state.hasRolled {
+                Button("Hold All") {
+                    state.holdAll()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Release All") {
+                    state.releaseAll()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            RollButton(
+                rollsRemaining: state.rollsRemaining,
+                canRoll: state.canRoll,
+                action: { state.roll() }
+            )
+        }
     }
 }
 

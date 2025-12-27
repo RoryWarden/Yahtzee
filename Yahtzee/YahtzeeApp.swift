@@ -13,7 +13,9 @@ struct YahtzeeApp: App {
         WindowGroup {
             MainMenu()
         }
+        #if os(macOS)
         .defaultSize(width: 950, height: 800)
         .windowResizability(.contentMinSize)
+        #endif
     }
 }

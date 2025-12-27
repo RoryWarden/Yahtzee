@@ -247,7 +247,11 @@ struct ScoreCardView: View {
             }
             TotalRow(label: "GRAND TOTAL", value: state.grandTotal, isBold: true, isGrandTotal: true)
         }
+        #if os(macOS)
         .background(Color(nsColor: .windowBackgroundColor))
+        #else
+        .background(Color(uiColor: .systemBackground))
+        #endif
         .cornerRadius(10)
         .shadow(radius: 2)
         .padding(.horizontal, 8)
